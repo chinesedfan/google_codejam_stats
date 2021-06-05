@@ -1,8 +1,24 @@
+const path = require('path')
 const axios = require('axios')
 
-loadAttempts('0000000000435c44', 'chinesedfan')
-    .then(({ attempts }) => extractLanguages(attempts))
-    .then(console.log)
+printAllLanguages('000000000043585d')
+
+function buildScoreFilePath(roundid) {
+    return path.resolve(__dirname, `../client/public/round_data/scores/${roundid}.json`)
+}
+
+function printAllLanguages(roundid, limit = 10) {
+    const scores = require(buildScoreFilePath(roundid))
+    scores.some(({ rank, displayname }, i) => {
+        loadAttempts(roundid, displayname)
+            .then(({ attempts }) => extractLanguages(attempts))
+            .then(langs => {
+                console.log(`#${rank} - ${displayname} - ${langs.join(',')}`)
+            })
+
+        if (i >= limit) return true
+    })
+}
 
 function buildURL(roundid, nickname) {
     const p = Buffer.from(JSON.stringify({
