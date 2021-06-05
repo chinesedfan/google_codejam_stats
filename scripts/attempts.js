@@ -7,17 +7,29 @@ function buildScoreFilePath(roundid) {
     return path.resolve(__dirname, `../client/public/round_data/scores/${roundid}.json`)
 }
 
-function printAllLanguages(roundid, limit = 10) {
+function printAllLanguages(roundid, limit = 50) {
     const scores = require(buildScoreFilePath(roundid))
+    const tasks = []
+    let done = 0
     scores.some(({ rank, displayname }, i) => {
-        loadAttempts(roundid, displayname)
-            .then(({ attempts }) => extractLanguages(attempts))
-            .then(langs => {
-                console.log(`#${rank} - ${displayname} - ${langs.join(',')}`)
-            })
-
         if (i >= limit) return true
+
+        const task = loadAttempts(roundid, displayname)
+            .then(({ attempts }) => {
+                done++
+                if (!(done % 10)) {
+                    console.log(`...${done}/${limit}`)
+                }
+                return extractLanguages(attempts)
+            })
+            .then(langs => `#${rank} - ${displayname} - ${langs.join(',')}`)
+        tasks.push(task)
     })
+
+    Promise.all(tasks)
+        .then(msgs => {
+            console.log(msgs.join('\n'))
+        })
 }
 
 function buildURL(roundid, nickname) {
@@ -32,7 +44,10 @@ function buildURL(roundid, nickname) {
 async function loadAttempts(roundid, nickname) {
     return axios(buildURL(roundid, nickname))
         .then(({ data }) => JSON.parse(Buffer.from(data, 'base64')))
-        .catch(e => console.log(`Failed to load for ${nickname}: ${e}`))
+        .catch(e => {
+            console.log(`Failed to load for ${nickname}: ${e}`)
+            return { attempts: [] }
+        })
 }
 
 function extractLanguages(attempts, onlySolved = false) {
